@@ -24,6 +24,9 @@ async function run() {
   try {
     // Database collection
     const usersCollection = client.db("VegetablesShopBD").collection("users");
+    const shoppingCartCollection = client
+      .db("VegetablesShopBD")
+      .collection("shoppingCart");
     const featuredProductsCollection = client
       .db("VegetablesShopBD")
       .collection("featuredProducts");
@@ -72,6 +75,13 @@ async function run() {
         .toArray();
 
       res.send(result);
+    });
+
+    app.post("/shopping-cart", async (req, res) => {
+      const products = req.body;
+      console.log(products);
+      // const result = await shoppingCartCollection.insertOne(products);
+      // res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
