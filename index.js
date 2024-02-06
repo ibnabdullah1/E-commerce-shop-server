@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+var jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const app = express();
@@ -24,6 +25,9 @@ async function run() {
   try {
     // Database collection
     const usersCollection = client.db("VegetablesShopBD").collection("users");
+    const reviewCollection = client
+      .db("VegetablesShopBD")
+      .collection("reviews");
     const shoppingCartCollection = client
       .db("VegetablesShopBD")
       .collection("shoppingCart");
@@ -34,6 +38,45 @@ async function run() {
       .db("VegetablesShopBD")
       .collection("products");
     // Save user in database
+
+    // jwt related api
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.JWT_SECRET, {
+        expiresIn: "30h",
+      });
+
+      res.send({ token });
+    });
+    const verifyToken = (req, res, next) => {
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+      const token = req.headers.authorization.split(" ")[1];
+      if (!token) {
+        return res.status(401).send({ message: "unauthorized access " });
+      }
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(403).send({ message: "Forbidden access" });
+        } else {
+          req.decoded = decoded;
+          next();
+        }
+      });
+    };
+
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const isAdmin = user?.role === "admin";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
     app.put("/users", async (req, res) => {
       const user = req.body;
       const query = { email: user.email };
@@ -51,6 +94,16 @@ async function run() {
     });
     app.get("/featured-products", async (req, res) => {
       const result = await featuredProductsCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.post("/review", async (req, res) => {
+      const review = req.body;
+      const result = await reviewCollection.insertOne(review);
+      res.send(result);
+    });
+    app.get("/reviews", async (req, res) => {
+      const result = await reviewCollection.find().toArray();
       res.send(result);
     });
 
